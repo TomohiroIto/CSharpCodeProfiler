@@ -10,8 +10,10 @@ namespace TestProject
         {
             using (CodeProfiler prof = new CodeProfiler())
             {
+                // the method to examine
                 TestMethod();
 
+                // stop profiling and output the result.
                 prof.Stop();
                 prof.OutputResultToFile(@"C:\Temp\test.xml");
             }
