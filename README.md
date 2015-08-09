@@ -9,7 +9,8 @@ You need Microsoft Visual Studio Commumity 2013 to build the code.
 Usage
 ------
 (1) Add CSharpCodeProfiler.dll or CodeProfiler.cs into your project.
-(2) Write the code like TestProject.
+
+(2) Write the code like TestProject to examine the performance of your code.
 
 ```csharp
 using (CodeProfiler prof = new CodeProfiler())
