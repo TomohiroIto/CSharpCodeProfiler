@@ -10,7 +10,7 @@ namespace TestProject
         {
             using (CodeProfiler prof = new CodeProfiler())
             {
-                // the method to examine
+                // the method to be examined
                 TestMethod();
 
                 // stop profiling and output the result.

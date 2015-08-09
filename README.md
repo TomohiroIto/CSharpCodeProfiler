@@ -15,7 +15,7 @@ Usage
 ```csharp
 using (CodeProfiler prof = new CodeProfiler())
 {
-    // the method to examine
+    // the method to be examined
     TestMethod();
 
     // stop profiling and output the result.
@@ -26,6 +26,15 @@ using (CodeProfiler prof = new CodeProfiler())
 
 (3) Open "C:\Temp\test.xml" from ProfViewer.exe.
 
+Benefit
+----------
+(1) You can check very small portion of your code.
+
+(2) You do not need Visual Studio to profile. You can add it to your release build.
+
+Defect
+----------
+(1) You need one CodeProfiler instance for each thread.
 
 License
 ----------
