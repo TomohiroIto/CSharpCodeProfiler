@@ -103,10 +103,21 @@ namespace CSharpCodeProfiler
                         // accept thread abort
                         throw ex;
                     }
+                    catch (Exception)
+                    {
+                        // comes when Thread.Suspend() fails.
+                    }
                     finally
                     {
                         // resume target thread
-                        targetThread.Resume();
+                        try
+                        {
+                            targetThread.Resume();
+                        }
+                        catch
+                        {
+                            // do nothing
+                        }
                     }
                 }
             }
