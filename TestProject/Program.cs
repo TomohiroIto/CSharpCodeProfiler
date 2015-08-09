@@ -8,16 +8,14 @@ namespace TestProject
     {
         static void Main(string[] args)
         {
-            //DataTable table;
             using (CodeProfiler prof = new CodeProfiler())
             {
                 TestMethod();
 
                 prof.Stop();
-                prof.OutputResult(@"C:\Temp\test.xml");
+                prof.OutputResultToFile(@"C:\Temp\test.xml");
             }
         }
-
 
         static void TestMethod()
         {

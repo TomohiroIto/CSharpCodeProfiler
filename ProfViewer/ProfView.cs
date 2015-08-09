@@ -1,18 +1,20 @@
-﻿using System;
+﻿using CSharpCodeProfiler;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Data;
 using System.Drawing;
+using System.Linq;
+using System.IO;
 using System.Text;
 using System.Windows.Forms;
 using System.Xml;
-using System.IO;
+using System.Xml.Serialization;
 
 namespace ProfViewer
 {
     public partial class ProfView : Form
     {
-        private DataTable resultTable = null;
+        private List<ProfileResultItem> resultList = null;
 
         public ProfView()
         {
@@ -23,10 +25,15 @@ namespace ProfViewer
         {
             if(ofdOpen.ShowDialog() != DialogResult.OK) return;
 
-            openDataTable(ofdOpen.FileName);
+            openList(ofdOpen.FileName);
         }
 
-        private void openDataTable(string filename)
+        private void tvProfTree_AfterSelect(object sender, TreeViewEventArgs e)
+        {
+            makeListView();
+        }
+
+        private void openList(string filename)
         {
             if (!File.Exists(filename))
             {
@@ -34,72 +41,67 @@ namespace ProfViewer
                 return;
             }
 
-            resultTable = new DataTable();
-            resultTable.Columns.Add("ID", typeof(int));
-            resultTable.Columns.Add("FUNCTION_NAME", typeof(string));
-            resultTable.Columns.Add("FUNCTION_STRING", typeof(string));
-            resultTable.Columns.Add("CLASS_NAME", typeof(string));
-            resultTable.Columns.Add("PARENT_NAME", typeof(string));
-            resultTable.Columns.Add("PARENT_ID", typeof(int));
-            resultTable.Columns.Add("DEPTH", typeof(int));
-            resultTable.Columns.Add("PROFILE", typeof(int));
-
-            resultTable.Namespace = "";
-            resultTable.TableName = "PROFILE";
-
             try
             {
-                resultTable.ReadXml(filename);
+                XmlSerializer ser = new XmlSerializer(typeof(List<ProfileResultItem>));
+
+                using (FileStream fs = new FileStream(filename, FileMode.Open, FileAccess.Read))
+                {
+                    resultList = ser.Deserialize(fs) as List<ProfileResultItem>;
+                }
             }
             catch (Exception)
             {
                 MessageBox.Show("Failed to read the file.");
-                resultTable = null;
+                resultList = null;
                 return;
             }
 
-            tvProfTree.Nodes.Add(readTable(resultTable));
+            lvProfSort.Items.Clear();
+            tvProfTree.Nodes.Clear();
+            tvProfTree.Nodes.Add(readList());
         }
 
-        private TreeNode readTable(DataTable table)
+        private TreeNode readList()
         {
             // get all items which have depth = 1.
-            DataRow[] firstNodes = table.Select("DEPTH = 1");
+            var firstNodes = resultList.Where((p) => p.Depth == 1);
 
             TreeNode tree = new TreeNode("<TOP>");
             tree.Tag = -1;
-            foreach (DataRow first in firstNodes)
+
+            foreach (ProfileResultItem first in firstNodes)
             {
                 // add to the tree
-                TreeNode fNode = tree.Nodes.Add(first["PROFILE"].ToString() + " " + first["FUNCTION_NAME"].ToString());
-                fNode.Tag = first["ID"];
+                TreeNode fNode = tree.Nodes.Add(first.ProfileCount.ToString() + " " + first.FunctionName);
+                fNode.Tag = first.ID;
 
-                int id = (int)first["ID"];
-                addChildren(table, id, fNode);
+                int id = first.ID;
+                addChildren(id, fNode);
             }
 
             return tree;
         }
 
-        private void addChildren(DataTable table, int id, TreeNode fNode)
+        private void addChildren(int id, TreeNode fNode)
         {
             // find children
-            DataRow[] children = table.Select("PARENT_ID = " + id, "PROFILE DESC");
+            var children = resultList.Where(p => p.ParentID == id).OrderByDescending(p => p.ProfileCount);
 
-            foreach (DataRow child in children)
+            foreach (ProfileResultItem child in children)
             {
                 // add children
-                TreeNode cNode = fNode.Nodes.Add(child["PROFILE"].ToString() + " " + child["FUNCTION_NAME"].ToString());
-                cNode.Tag = child["ID"];
+                TreeNode cNode = fNode.Nodes.Add(child.ProfileCount.ToString() + " " + child.FunctionName);
+                cNode.Tag = child.ID;
 
-                int cid = (int)child["ID"];
-                addChildren(table, cid, cNode);
+                int cid = child.ID;
+                addChildren(cid, cNode);
             }
         }
 
-        private void tvProfTree_AfterSelect(object sender, TreeViewEventArgs e)
+        private void makeListView()
         {
-            if (resultTable == null) return;
+            if (resultList == null) return;
 
             TreeNode curNode = tvProfTree.SelectedNode;
             int id = (int)curNode.Tag;
@@ -109,12 +111,12 @@ namespace ProfViewer
                 return;
             }
 
-            DataRow[] children = resultTable.Select("PARENT_ID = " + id, "PROFILE DESC");
+            var children = resultList.Where(p => p.ParentID == id).OrderByDescending(p => p.ProfileCount);
 
             lvProfSort.Items.Clear();
-            foreach (DataRow child in children)
+            foreach (ProfileResultItem child in children)
             {
-                string[] list = new string[] { child["PROFILE"].ToString(), child["CLASS_NAME"].ToString(), child["FUNCTION_STRING"].ToString() };
+                string[] list = new string[] { child.ProfileCount.ToString(), child.ClassName, child.FunctionString };
                 lvProfSort.Items.Add(new ListViewItem(list));
             }
         }

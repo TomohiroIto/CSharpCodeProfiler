@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
@@ -68,12 +67,12 @@ namespace CSharpCodeProfiler
         }
 
         /// <summary>
-        /// Output result as a xml file
+        /// output profiling result to file
         /// </summary>
-        /// <returns></returns>
-        public void OutputResult(string outputFile)
+        /// <param name="outputFile"></param>
+        public void OutputResultToFile(string outputFile)
         {
-            prResult.GetResultTable().WriteXml(outputFile);
+            prResult.WriteResult(outputFile);
         }
 
         /// <summary>
@@ -203,7 +202,7 @@ namespace CSharpCodeProfiler
 
                 // search next
                 string class_name = bsMethod.ReflectedType == null ? "" : bsMethod.ReflectedType.FullName;
-                ProfileResultItem findt = find.Find(bsMethod.ToString(), class_name);
+                ProfileResultItem findt = find.SearchChildren(bsMethod.ToString(), class_name);
 
                 // create if not found
                 if (findt == null)
@@ -226,42 +225,17 @@ namespace CSharpCodeProfiler
         }
 
         /// <summary>
-        /// get the result as a DataTable
+        /// write profiling result to file
         /// </summary>
-        /// <returns></returns>
-        public DataTable GetResultTable()
+        /// <param name="filename"></param>
+        public void WriteResult(string filename)
         {
-            // create table
-            DataTable resultTable = new DataTable();
-            resultTable.Namespace = "";
-            resultTable.TableName = "PROFILE";
+            XmlSerializer ser = new XmlSerializer(typeof(List<ProfileResultItem>));
 
-            // configure columns
-            resultTable.Columns.Add("ID", typeof(int));
-            resultTable.Columns.Add("FUNCTION_NAME", typeof(string));
-            resultTable.Columns.Add("FUNCTION_STRING", typeof(string));
-            resultTable.Columns.Add("CLASS_NAME", typeof(string));
-            resultTable.Columns.Add("PARENT_NAME", typeof(string));
-            resultTable.Columns.Add("PARENT_ID", typeof(int));
-            resultTable.Columns.Add("DEPTH", typeof(int));
-            resultTable.Columns.Add("PROFILE", typeof(int));
-
-            // copy data
-            foreach (ProfileResultItem item in resultList)
+            using (FileStream fs = new FileStream(filename, FileMode.Create))
             {
-                DataRow row = resultTable.NewRow();
-                row["ID"] = item.ID;
-                row["FUNCTION_NAME"] = item.FunctionName;
-                row["FUNCTION_STRING"] = item.FunctionString;
-                row["CLASS_NAME"] = item.ClassName;
-                row["PARENT_NAME"] = item.ParentName;
-                row["PARENT_ID"] = item.ParentID;
-                row["DEPTH"] = item.Ladder;
-                row["PROFILE"] = item.ProfileCount;
-                resultTable.Rows.Add(row);
+                ser.Serialize(fs, resultList);
             }
-
-            return resultTable;
         }
     }
 
@@ -269,92 +243,58 @@ namespace CSharpCodeProfiler
     /// <summary>
     /// function information
     /// </summary>
-    public class ProfileResultItem : IComparable<ProfileResultItem>
+    public class ProfileResultItem
     {
         /// <summary>
         /// children
         /// </summary>
         private List<ProfileResultItem> children = new List<ProfileResultItem>();
-        /// <summary>
-        /// sort flag
-        /// </summary>
-        private bool sorted = false;
-
-
-        /// <summary>
-        /// ID
-        /// </summary>
-        private int id = 0;
-        public int ID
-        {
-            get { return id; }
-            set { id = value; }
-        }
-
-        /// <summary>
-        /// short function name
-        /// </summary>
-        private string function_name;
-        public string FunctionName
-        {
-            get { return function_name; }
-            set { function_name = value; }
-        }
-
-        /// <summary>
-        /// function name for display
-        /// </summary>
-        private string function_string;
-        public string FunctionString
-        {
-            get { return function_string; }
-            set { function_string = value; }
-        }
-
-        /// <summary>
-        /// class name
-        /// </summary>
-        private string class_name;
-        public string ClassName
-        {
-            get { return class_name; }
-            set { class_name = value; }
-        }
 
         /// <summary>
         /// parent
         /// </summary>
         private ProfileResultItem parent;
-        public string ParentName
-        {
-            get { return (parent == null) ? "" : parent.function_name; }
-            set { }
-        }
-        public int ParentID
-        {
-            get { return (parent == null) ? -1 : parent.id; }
-            set { }
-        }
+
+
+        /// <summary>
+        /// ID
+        /// </summary>
+        public int ID { get; set; }
+
+        /// <summary>
+        /// short function name
+        /// </summary>
+        public string FunctionName { get; set; }
+
+        /// <summary>
+        /// function name for display
+        /// </summary>
+        public string FunctionString { get; set; }
+
+        /// <summary>
+        /// class name
+        /// </summary>
+        public string ClassName { get; set; }
+
+        /// <summary>
+        /// parent name
+        /// </summary>
+        public string ParentName { get; set; }
+
+        /// <summary>
+        /// parent id
+        /// </summary>
+        public int ParentID { get; set; }
 
         /// <summary>
         /// depth of this item
         /// </summary>
-        private int ladder;
-        public int Ladder
-        {
-            get { return ladder; }
-            set { ladder = value; }
-        }
+        public int Depth { get; set; }
 
         /// <summary>
         /// called count
         /// </summary>
-        private int profile_count;
-        public int ProfileCount
-        {
-            get { return profile_count; }
-            set { profile_count = value; }
-        }
+        public int ProfileCount { get; set; }
 
 
         /// <summary>
@@ -365,9 +305,11 @@ namespace CSharpCodeProfiler
         /// <summary>
         /// constructor
         /// </summary>
+        /// <param name="id"></param>
         /// <param name="parent"></param>
         /// <param name="function_name"></param>
         /// <param name="function_string"></param>
+        /// <param name="class_name"></param>
         public ProfileResultItem(
             int id,
             ProfileResultItem parent,
@@ -375,17 +317,26 @@ namespace CSharpCodeProfiler
             string function_string,
             string class_name)
         {
-            this.id = id;
+            this.ID = id;
             this.parent = parent;
-            this.function_name = function_name;
-            this.function_string = function_string;
-            this.class_name = class_name;
+            this.FunctionName = function_name;
+            this.FunctionString = function_string;
+            this.ClassName = class_name;
 
             if (parent != null)
-                this.ladder = parent.ladder + 1;
-            else this.ladder = 0;
+            {
+                this.Depth = parent.Depth + 1;
+                this.ParentName = parent.FunctionName;
+                this.ParentID = parent.ID;
+            }
+            else
+            {
+                this.Depth = 0;
+                this.ParentName = "";
+                this.ParentID = -1;
+            }
 
-            this.profile_count = 0;
+            this.ProfileCount = 0;
         }
 
         /// <summary>
@@ -395,7 +346,6 @@ namespace CSharpCodeProfiler
         public void AddChild(ProfileResultItem child)
         {
             children.Add(child);
-            sorted = false;
         }
 
         /// <summary>
@@ -403,7 +353,7 @@ namespace CSharpCodeProfiler
         /// </summary>
         public void Increment()
         {
-            profile_count++;
+            ProfileCount++;
         }
 
         /// <summary>
@@ -412,41 +362,17 @@ namespace CSharpCodeProfiler
         /// <param name="func_nm"></param>
         /// <param name="class_nm"></param>
         /// <returns></returns>
-        public ProfileResultItem Find(string func_nm, string class_nm)
+        public ProfileResultItem SearchChildren(string func_nm, string class_nm)
         {
             // input check
             if (func_nm == null || class_nm == null) return null;
 
             for (int i = 0; i < children.Count; i++)
             {
-                if (children[i].function_string.Equals(func_nm) && children[i].class_name.Equals(class_nm)) return children[i];
+                if (children[i].FunctionString.Equals(func_nm) && children[i].ClassName.Equals(class_nm)) return children[i];
             }
 
             return null;
-        }
-
-        /// <summary>
-        /// sort (currently not used)
-        /// </summary>
-        private void sort()
-        {
-            if (sorted) return;
-
-            children.Sort();
-            sorted = true;
-        }
-
-        /// <summary>
-        /// IComparable<ProfileResultItem>.CompareTo
-        /// </summary>
-        /// <param name="other"></param>
-        /// <returns></returns>
-        public int CompareTo(ProfileResultItem other)
-        {
-            int c = this.profile_count.CompareTo(other.profile_count);
-            if (c != 0) return c;
-
-            return this.ladder.CompareTo(other.ladder);
         }
     }
 }

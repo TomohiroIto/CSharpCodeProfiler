@@ -92,6 +92,12 @@
       <Install>false</Install>
     </BootstrapperPackage>
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CSharpCodeProfiler\CSharpCodeProfiler.csproj">
+      <Project>{a8b43299-7c1f-40a5-8d21-fc1523dbed86}</Project>
+      <Name>CSharpCodeProfiler</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
